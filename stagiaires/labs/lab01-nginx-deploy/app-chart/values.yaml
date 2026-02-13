@@ -1,0 +1,20 @@
+replicaCount: 4
+
+image:
+  repository: nginx
+  tag: "1.27.3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+
+namespace: mon-application
+
+# Le contenu de index.html sera injecté ici par le script python ou via un ConfigMap par défaut
+indexHtml: |
+  <html>
+    <body>
+      <h1>En attente du déploiement final...</h1>
+    </body>
+  </html>
