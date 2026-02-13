@@ -1,0 +1,6 @@
+apiVersion: v2
+name: app-chart
+description: Un chart Helm pour déployer NGINX avec une page personnalisée
+type: application
+version: 0.1.0
+appVersion: "1.27.3"
