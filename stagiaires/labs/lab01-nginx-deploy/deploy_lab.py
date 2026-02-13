@@ -11,6 +11,9 @@ def run_command(command):
     return result.stdout
 
 def main():
+    # S'assurer que le script s'exécute dans son propre répertoire
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     # 1. Charger la configuration
     try:
         with open('config.json', 'r') as f:
