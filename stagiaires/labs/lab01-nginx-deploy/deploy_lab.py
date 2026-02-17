@@ -20,12 +20,23 @@ def run_command(command, stop_on_error=True):
 
 def check_cluster_connection():
     print("Vérification de la connexion au cluster Kubernetes...")
-    result = subprocess.run(["kubectl", "cluster-info"], capture_output=True, text=True)
-    if result.returncode != 0:
+    try:
+        result = subprocess.run(["kubectl", "cluster-info"], capture_output=True, text=True)
+        if result.returncode != 0:
+            print("\n" + "!"*60)
+            print("ERREUR : Impossible de contacter le cluster Kubernetes.")
+            print(f"Détail de l'erreur : {result.stderr or result.stdout}")
+            print("\nActions suggérées :")
+            print("1. Vérifiez que votre cluster KIND est démarré : 'kind get clusters'")
+            print("2. Exportez la configuration : 'kind export kubeconfig'")
+            print("3. Si vous utilisez un binaire local, assurez-vous qu'il est dans votre PATH.")
+            print("KUBECONFIG actuel :", os.environ.get('KUBECONFIG', 'Par défaut (~/.kube/config)'))
+            print("!"*60 + "\n")
+            return False
+    except FileNotFoundError:
         print("\n" + "!"*60)
-        print("ERREUR : Impossible de contacter le cluster Kubernetes.")
-        print("Assurez-vous que votre cluster KIND est démarré (kind export kubeconfig).")
-        print("Vérifiez également que kubectl est correctement configuré.")
+        print("ERREUR : La commande 'kubectl' est introuvable.")
+        print("Assurez-vous que kubectl est installé et présent dans votre PATH.")
         print("!"*60 + "\n")
         return False
     return True
