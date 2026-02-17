@@ -3,14 +3,37 @@ import json
 import os
 import time
 
-def run_command(command):
-    print(f"Exécution : {' '.join(command)}")
-    result = subprocess.run(command, capture_output=True, text=True)
+def run_command(command, stop_on_error=True):
+    if isinstance(command, str):
+        print(f"Exécution : {command}")
+        result = subprocess.run(command, capture_output=True, text=True, shell=True)
+    else:
+        print(f"Exécution : {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True)
+
     if result.returncode != 0:
-        print(f"Erreur : {result.stderr}")
+        print(f"ERREUR lors de l'exécution : {result.stderr or result.stdout}")
+        if stop_on_error:
+            print("Arrêt du script en raison d'une erreur critique.")
+            exit(1)
     return result.stdout
 
+def check_cluster_connection():
+    print("Vérification de la connexion au cluster Kubernetes...")
+    result = subprocess.run(["kubectl", "cluster-info"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print("\n" + "!"*60)
+        print("ERREUR : Impossible de contacter le cluster Kubernetes.")
+        print("Assurez-vous que votre cluster KIND est démarré (kind export kubeconfig).")
+        print("Vérifiez également que kubectl est correctement configuré.")
+        print("!"*60 + "\n")
+        return False
+    return True
+
 def main():
+    # S'assurer que le script s'exécute dans son propre répertoire
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
     # 1. Charger la configuration
     try:
         with open('config.json', 'r') as f:
@@ -26,10 +49,14 @@ def main():
 
     print(f"Démarrage du Lab pour {stagiaire_nom}...")
 
-    # 2. Créer le namespace si nécessaire
-    subprocess.run(f"kubectl create namespace {namespace} --dry-run=client -o yaml | kubectl apply -f -", shell=True)
+    # 2. Vérifier la connexion au cluster
+    if not check_cluster_connection():
+        return
 
-    # 3. Premier déploiement Helm pour initialiser
+    # 3. Créer le namespace si nécessaire
+    run_command(f"kubectl create namespace {namespace} --dry-run=client -o yaml | kubectl apply -f -")
+
+    # 4. Premier déploiement Helm pour initialiser
     print("Déploiement initial de l'application via HELM...")
     run_command(["helm", "upgrade", "--install", "mon-app", "./app-chart", "-n", namespace, "--set", f"namespace={namespace}"])
 
@@ -37,10 +64,10 @@ def main():
     print("Attente de la création des ressources...")
     time.sleep(5)
 
-    # 4. Récupérer les infos kubectl
+    # 5. Récupérer les infos kubectl
     print("Récupération des informations du cluster...")
-    pods_info = run_command(["kubectl", "get", "pods", "-n", namespace])
-    svc_info = run_command(["kubectl", "get", "svc", "-n", namespace])
+    pods_info = run_command(["kubectl", "get", "pods", "-n", namespace], stop_on_error=False)
+    svc_info = run_command(["kubectl", "get", "svc", "-n", namespace], stop_on_error=False)
 
     logs_kubectl = f"--- PODS ---\n{pods_info}\n--- SERVICES ---\n{svc_info}"
 
@@ -101,7 +128,7 @@ def main():
 </html>
 """
 
-    # 6. Mettre à jour Helm avec le nouveau contenu HTML
+    # 7. Mettre à jour Helm avec le nouveau contenu HTML
     print("Mise à jour de la page web avec les données du cluster...")
     # On utilise --set-file ou on passe la string via --set.
     # Pour éviter les problèmes de caractères spéciaux dans le HTML via CLI, on va créer un fichier temporaire
